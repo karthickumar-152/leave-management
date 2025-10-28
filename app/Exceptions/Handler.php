@@ -26,5 +26,36 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+
+        $this->renderable(function (\Spatie\Permission\Exceptions\UnauthorizedException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'You do not have the required permission to access this resource.'
+                ], 403);
+            }
+            
+            return redirect()
+                ->back()
+                ->with('error', 'You do not have the required permission to perform this action.');
+        });
+
+        $this->renderable(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+            
+            return redirect()->guest(route('login'))
+                ->with('error', 'Please login to access this resource.');
+        });
+
+        $this->renderable(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($e->getStatusCode() === 403) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Forbidden.'], 403);
+                }
+                
+                return response()->view('errors.403', ['message' => $e->getMessage()], 403);
+            }
+        });
     }
 }
